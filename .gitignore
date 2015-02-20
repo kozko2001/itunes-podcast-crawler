@@ -1,0 +1,6 @@
+lookup.json
+merge.json
+result.json
+*.pyc
+log
+.*
