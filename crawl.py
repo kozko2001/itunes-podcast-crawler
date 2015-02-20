@@ -1,11 +1,13 @@
 import click
 import os
+import sys
 from subprocess import call
 from requests import get
 import json
 import elasticsearch
 import datetime
-
+from lxml import etree
+import multiprocessing
 
 SCRAPY_RESULT = "result.json"
 LOOKUP_RESULT = "lookup.json"
@@ -74,16 +76,53 @@ def merge():
         _id = lookup['trackId']
         channel = index[_id] if _id in index else None
 
-        validKeys = ["releaseDate", "trackId", "feedUrl", "trackViewUrl", "artworkUrl600"]
+        validKeys = ["releaseDate", "trackId", "feedUrl",
+                     "trackViewUrl", "artworkUrl600"]
         lookup = {k: v for (k, v) in lookup.iteritems() if k in validKeys}
 
         if channel:
             lookup.update(channel)
 
-        result.append(lookup)
+        if 'releaseDate' in lookup:
+            date = datetime.datetime.strptime(lookup['releaseDate'],
+                                              "%Y-%m-%dT%H:%M:%SZ")
+
+            delta = datetime.datetime.now() - date
+            if delta.days < 400:
+                result.append(lookup)
 
     with open(MERGE_RESULT, 'w') as outfile:
-            json.dump(result, outfile, indent = 4)
+            json.dump(result, outfile, indent=4)
+
+
+@cli.command()
+def addFeedData():
+    """
+    Downloads the feedurl from the merge data and add
+    data for the channel description
+    """
+
+    pool = multiprocessing.Pool(100)
+    json_merge = json.load(file(MERGE_RESULT))
+
+    result = pool.map(add_feed_data_worker, json_merge)
+
+    with open(MERGE_RESULT, 'w') as outfile:
+        json.dump(result, outfile, indent=4)
+
+
+def add_feed_data_worker(_json):
+    try:
+        url = _json['feedUrl']
+        r = get(url)
+        rss = etree.XML(r.content)
+        description = "".join(rss.xpath('//channel/itunes:summary/text()',
+                                        namespaces=rss.nsmap))
+        _json['description'] = description
+        print url
+        return _json
+    except:
+        return _json
 
 
 @cli.command()
@@ -99,16 +138,10 @@ def elasticSearch():
 
     for _json in json_merge:
         _id = _json['trackId']
-        if 'releaseDate' in _json:
-            date = datetime.datetime.strptime(_json['releaseDate'], "%Y-%m-%dT%H:%M:%SZ")
-
-            delta = datetime.datetime.now() - date
-            if delta.days < 400:
-                print "not discarted"
-                _json['releaseDate'] = date
-                es.index(index='podcast', doc_type='podcast', id=_id, body=_json)
-            else:
-                print "discarted... %s days last release podcast" % delta.days
+        date = datetime.datetime.strptime(lookup['releaseDate'],
+                                          "%Y-%m-%dT%H:%M:%SZ")
+        _json['releaseDate'] = date
+        es.index(index='podcast', doc_type='podcast', id=_id, body=_json)
 
 
 if __name__ == '__main__':

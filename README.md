@@ -13,6 +13,8 @@ Extract podcast from itunes
 
 5) python crawl.py merge ## merge the two datafiles
 
-6) python crawl.py elasticsearch ## add data to elasticsearch service
+6) python crawl.py addfeeddata ## download the rss xml and extracts the information 
 
-7) cd http; python query.py ## to see the search on a rest api
+7) python crawl.py elasticsearch ## add data to elasticsearch service
+
+8) cd http; python query.py ## to see the search on a rest api

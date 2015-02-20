@@ -11,9 +11,4 @@ from scrapy import Field, Item
 class ItunesItem(Item):
     name = Field()
     url = Field()
-    description = Field()
     itunesId = Field()
-    feedUrl = Field()
-    date = Field()
-    imageUrl = Field()
-    popular = Field()
