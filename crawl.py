@@ -1,6 +1,5 @@
 import click
 import os
-import sys
 from subprocess import call
 from requests import get
 import json
@@ -26,7 +25,8 @@ def scrapy():
     """
     for fn in ["log", "result.json"]:
         os.remove(fn) if os.path.exists(fn) else None
-    command = "scrapy crawl --logfile=log -L ERROR itunesSpider -t json -o %s" % (SCRAPY_RESULT)
+    command = ("scrapy crawl --logfile=log -L ERROR "
+               "itunesSpider -t json -o %s") % (SCRAPY_RESULT)
     call(command.split(" "))
 
 
@@ -40,7 +40,7 @@ def lookup():
 
     writing the data to different files
     """
-    jsons = json.loads(SCRAPY_RESULT)
+    jsons = json.load(file(SCRAPY_RESULT))
 
     n = 180
     chunks = [jsons[x:x + n] for x in xrange(0, len(jsons), n)]
@@ -104,22 +104,27 @@ def addFeedData():
 
     pool = multiprocessing.Pool(100)
     json_merge = json.load(file(MERGE_RESULT))
+    count = len(json_merge)
 
-    result = pool.map(add_feed_data_worker, json_merge)
+    data = [(_json, idx, count) for idx, _json in enumerate(json_merge)]
+    result = pool.map(add_feed_data_worker, data, chunksize=1)
+    pool.close()
+    pool.join()
 
     with open(MERGE_RESULT, 'w') as outfile:
         json.dump(result, outfile, indent=4)
 
 
-def add_feed_data_worker(_json):
+def add_feed_data_worker(data):
+    _json, index, total = data
     try:
         url = _json['feedUrl']
-        r = get(url)
+        r = get(url, timeout=5)
         rss = etree.XML(r.content)
         description = "".join(rss.xpath('//channel/itunes:summary/text()',
                                         namespaces=rss.nsmap))
         _json['description'] = description
-        print url
+        print url, index, total
         return _json
     except:
         return _json
