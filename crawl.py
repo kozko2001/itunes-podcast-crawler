@@ -143,7 +143,7 @@ def elasticSearch():
 
     for _json in json_merge:
         _id = _json['trackId']
-        date = datetime.datetime.strptime(lookup['releaseDate'],
+        date = datetime.datetime.strptime(_json['releaseDate'],
                                           "%Y-%m-%dT%H:%M:%SZ")
         _json['releaseDate'] = date
         es.index(index='podcast', doc_type='podcast', id=_id, body=_json)
