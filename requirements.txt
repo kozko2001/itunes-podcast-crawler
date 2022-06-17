@@ -14,7 +14,7 @@ pycparser==2.10
 pyOpenSSL==0.14
 queuelib==1.2.2
 requests==2.5.1
-Scrapy==0.24.4
+Scrapy==2.6.1
 six==1.9.0
 Twisted==15.0.0
 urllib3==1.10.1
